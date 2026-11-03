@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مخطط الوجبات</title>
+<style>
+  * { box-sizing: border-box; }
+  :root { --accent: #2563eb; }
+  body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 64px auto; padding: 0 16px; color: #222; }
+  h1 { font-size: 38px; margin-bottom: 6px; background: linear-gradient(135deg, #2563eb, #7c3aed); -webkit-background-clip: text; background-clip: text; color: transparent; letter-spacing: -0.5px; }
+  h2 { font-size: 26px; color: #0f172a; letter-spacing: -0.3px; }
+  h3 { font-size: 19px; color: #334155; }
+  .sub { color: #666; margin-top: 0; }
+  label { display: block; margin: 14px 0 4px; font-weight: 600; font-size: 14px; }
+  input[type="number"], input[type="text"], select { width: 100%; padding: 10px; margin-top: 4px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; }
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; }
+  button { margin-top: 18px; padding: 12px 24px; border: none; border-radius: 8px; background: var(--accent); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
+  button:hover { background: var(--accent); filter: brightness(0.9); }
+  .card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-top: 16px; margin-bottom: 8px; background: #fff; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.07); }
+  .totals { display: flex; justify-content: space-between; font-weight: 700; padding-top: 10px; border-top: 2px solid #e2e8f0; margin-top: 8px; }
+  .meal { padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+  .meal:last-of-type { border-bottom: none; }
+  .meal .name { font-weight: 600; }
+  .meal .meta { color: #64748b; font-size: 13px; margin-top: 2px; }
+  .tag { display: inline-block; font-size: 11px; background: color-mix(in srgb, var(--accent) 12%, #ffffff); color: var(--accent); padding: 2px 8px; border-radius: 999px; margin-left: 6px; font-weight: 600; }
+  .tag.green { background: #dcfce7; color: #166534; }
+  .tag.orange { background: #ffedd5; color: #9a3412; }
+  .tag.red { background: #fee2e2; color: #991b1b; }
+  .tag.teal { background: #ccfbf1; color: #115e59; }
+  .empty { color: #94a3b8; font-style: italic; }
+  .grocery { background: #f8fafc; border: 1px dashed var(--accent); border-radius: 8px; padding: 12px; margin-top: 10px; font-size: 14px; }
+  .grocery ul { margin: 6px 0 0; padding-left: 20px; }
+  .grocery li { margin: 2px 0; }
+  .saved { margin-top: 8px; font-size: 14px; }
+  .saved button { margin-top: 4px; padding: 6px 12px; font-size: 13px; background: #e2e8f0; color: #1e293b; border: none; border-radius: 6px; cursor: pointer; }
+  .saved button:hover { background: #cbd5e1; }
+  #picker label { display: block; font-weight: 400; padding: 3px 0; }
+</style>
+</head>
+<body>
+<h1>🥗 مخطط الوجبات</h1>
+<p class="sub">أدخل دخلك → واحصل على خطة وجبات فطور وغداء وعشاء.</p>
+
+<div class="card">
+  <div class="row">
+    <div>
+      <label for="income">الدخل الشهري ($)</label>
+      <input id="income" type="number" min="0" step="100" value="3000">
+    </div>
+    <div>
+      <label for="diet">التفضيل الغذائي</label>
+      <select id="diet">
+        <option value="">أي</option>
+        <option value="vegetarian">نباتي</option>
+        <option value="vegan">نباتي صرف</option>
+        <option value="high-protein">عالي البروتين</option>
+      </select>
+    </div>
+  </div>
+  <label for="calB">السعرات القصوى — الفطور</label>
+  <input id="calB" type="number" min="0" step="50" value="450">
+  <label for="calL">السعرات القصوى — الغداء</label>
+  <input id="calL" type="number" min="0" step="50" value="650">
+  <label for="calD">السعرات القصوى — العشاء</label>
+  <input id="calD" type="number" min="0" step="50" value="750">
+  <div id="picker"></div>
+  <button id="planBtn">أنشئ خطتي</button>
+  <label for="accent">Accent colour</label>
+  <input id="accent" type="color" value="#2563eb">
+</div>
+
+<div id="output"></div>
+<div id="savedPlans"></div>
+
+<script>
+const MEALS = {
+  breakfast: [
+    { name: "شوفان + موز + زبدة فول سوداني", cal: 450, cost: 1.20, group: "الفطور", items: ["oats","banana","peanut butter"], tags: ["vegan","cheap","quick"] },
+    { name: "بيض مسلوق + خبز + فاكهة", cal: 550, cost: 2.80, group: "الفطور", items: ["eggs","bread","fruit"], tags: ["high-protein","cheap","quick"] },
+    { name: "زبادي يوناني + شوفان + توت", cal: 420, cost: 2.20, group: "الفطور", items: ["greek yogurt","granola","berries"], tags: ["vegetarian"] },
+    { name: "سموثي + موز + شوفان", cal: 500, cost: 3.00, group: "الفطور", items: ["frozen berries","banana","oats"], tags: ["vegan","quick"] },
+    { name: "توست أفوكادو + بيض", cal: 480, cost: 3.50, group: "الفطور", items: ["bread","avocado","eggs"], tags: ["vegetarian","quick"] },
+    { name: "بان كيك + شراب", cal: 650, cost: 2.50, group: "الفطور", items: ["flour","milk","eggs","syrup"], tags: ["cheap","treat"] },
+    { name: "بيض + خضار + جبن", cal: 520, cost: 3.20, group: "الفطور", items: ["tortilla","eggs","veggies","cheese"], tags: ["high-protein","quick"] },
+    { name: "تشي + توت", cal: 390, cost: 2.40, group: "الفطور", items: ["chia seeds","milk","berries"], tags: ["vegan","cheap"] },
+  ],
+  lunch: [
+    { name: "ساندويتش تركي + مقبلات", cal: 650, cost: 3.50, group: "الغداء", items: ["bread","turkey","lettuce","chips"], tags: ["quick"] },
+    { name: "سلطة صدر دجاج مشوية", cal: 550, cost: 4.50, group: "الغداء", items: ["chicken","lettuce","tomato","cucumber"], tags: ["high-protein","healthy"] },
+    { name: "رول تونة + فاكهة", cal: 600, cost: 3.80, group: "الغداء", items: ["tuna","tortilla","lettuce","fruit"], tags: ["quick"] },
+    { name: "حواكص خضار + أرز", cal: 550, cost: 3.50, group: "الغداء", items: ["veggies","rice","soy sauce"], tags: ["vegan","healthy"] },
+    { name: "أرز + فاصوليا + خضار", cal: 580, cost: 2.80, group: "الغداء", items: ["rice","beans","veggies"], tags: ["vegan","cheap"] },
+    { name: "حساء + ساندويتش + سلطة", cal: 620, cost: 4.20, group: "الغداء", items: ["soup","bread","lettuce"], tags: ["healthy"] },
+    { name: "رول دجاج كريمة + جانب", cal: 680, cost: 4.80, group: "الغداء", items: ["chicken","tortilla","caesar","lettuce"], tags: ["high-protein","quick"] },
+    { name: "رول فحل + حمص + سلطة", cal: 610, cost: 4.00, group: "الغداء", items: ["falafel","pita","hummus","salad"], tags: ["vegan","healthy"] },
+  ],
+  dinner: [
+    { name: "حواكص دجاج مشوية + أرز", cal: 700, cost: 4.50, group: "العشاء", items: ["chicken","veggies","rice"], tags: ["high-protein","quick"] },
+    { name: "سباقيطي + صلصة لحم + سلطة", cal: 750, cost: 4.80, group: "العشاء", items: ["pasta","ground beef","sauce","lettuce"], tags: ["cheap"] },
+    { name: "سلمون + خضار + كينوا", cal: 650, cost: 7.00, group: "العشاء", items: ["salmon","veggies","quinoa"], tags: ["high-protein","healthy","premium"] },
+    { name: "توفو + كاري + أرز", cal: 620, cost: 3.80, group: "العشاء", items: ["tofu","curry sauce","rice"], tags: ["vegan","cheap"] },
+    { name: "تاكو لحم + فاصوليا + سلطة", cal: 700, cost: 5.50, group: "العشاء", items: ["beef","tortilla","beans","salsa"], tags: ["high-protein","quick"] },
+    { name: "بيتزا خضار + سلطة", cal: 680, cost: 5.50, group: "العشاء", items: ["pizza","lettuce"], tags: ["vegetarian","treat"] },
+    { name: "شيبس + سباقيطي + سبانخ", cal: 690, cost: 6.50, group: "العشاء", items: ["shrimp","pasta","spinach"], tags: ["high-protein","healthy"] },
+    { name: "برغر فائض + بطاطس + سلطة", cal: 660, cost: 5.00, group: "العشاء", items: ["black beans","burger patty","sweet potato","slaw"], tags: ["vegan","high-protein"] },
+  ],
+};
+
+const DIET_TAGS = { "vegetarian": "vegetarian", "vegan": "vegan", "high-protein": "high-protein" };
+const DIET_LABELS = { "vegetarian": "نباتي", "vegan": "نباتي صرف", "high-protein": "عالي البروتين" };
+const GROUP_LABELS = { breakfast: "الفطور", lunch: "الغداء", dinner: "العشاء" };
+
+function calorieTarget(dailyBudget, diet) {
+  let tier;
+  if (dailyBudget < 8) tier = 2000;
+  else if (dailyBudget < 13) tier = 2500;
+  else if (dailyBudget < 18) tier = 3000;
+  else tier = 3500;
+  if (diet && DIET_TAGS[diet]) {
+    tier = diet === "vegan" ? 2000 : diet === "vegetarian" ? 2200 : 2700;
+  }
+  return tier;
+}
+
+function allowedMeals(diet) {
+  const tag = diet ? DIET_TAGS[diet] : null;
+  const out = {};
+  for (const [k, list] of Object.entries(MEALS)) {
+    out[k] = tag ? list.filter(m => m.tags.includes(tag)) : list.slice();
+  }
+  return out;
+}
+
+function renderPicker() {
+  const diet = document.getElementById("diet").value;
+  const pool = allowedMeals(diet);
+  let html = "";
+  for (const k of ["breakfast", "lunch", "dinner"]) {
+    html += `<div style="margin-top:10px"><strong>${GROUP_LABELS[k]}</strong><div style="margin-top:4px">`;
+    for (const m of pool[k]) {
+      html += `<label><input type="checkbox" name="${k}" value="${m.name}"> ${m.name} — ${m.cal} kcal</label>`;
+    }
+    html += `</div></div>`;
+  }
+  document.getElementById("picker").innerHTML = html;
+}
+
+function checkedMeals(group, poolList) {
+  const byName = new Map(poolList.map(m => [m.name, m]));
+  const out = [];
+  document.querySelectorAll(`input[name="${group}"]:checked`).forEach(cb => {
+    const m = byName.get(cb.value);
+    if (m) out.push(m);
+  });
+  return out;
+}
+
+function pickBest(list, capKcal, taken) {
+  const candidates = list.filter(m => m && m.cal <= capKcal && !taken.includes(m));
+  if (candidates.length) { const m = candidates[0]; taken.push(m); return m; }
+  const shuffled = list.slice().sort(() => Math.random() - 0.5);
+  for (const m of shuffled) {
+    if (m && m.cal <= capKcal && !taken.includes(m)) { taken.push(m); return m; }
+  }
+  return null;
+}
+
+function generatePlan() {
+  const income = parseFloat(document.getElementById("income").value) || 0;
+  const diet = document.getElementById("diet").value;
+  const dailyBudget = income / 30;
+  const target = calorieTarget(dailyBudget, diet);
+  const pool = allowedMeals(diet);
+  const cap = (id, fb) => Math.max(0, parseFloat(document.getElementById(id).value) || fb);
+  const capB = cap("calB", 450), capL = cap("calL", 650), capD = cap("calD", 750);
+
+  const checkedB = checkedMeals("breakfast", pool.breakfast);
+  const checkedL = checkedMeals("lunch", pool.lunch);
+  const checkedD = checkedMeals("dinner", pool.dinner);
+
+  const taken = [];
+  const b = pickBest(checkedB.length ? checkedB : pool.breakfast, capB, taken);
+  const l = pickBest(checkedL.length ? checkedL : pool.lunch, capL, taken);
+  const d = pickBest(checkedD.length ? checkedD : pool.dinner, capD, taken);
+  const meals = [b, l, d].filter(Boolean);
+  const totalCal = meals.reduce((s, m) => s + m.cal, 0);
+  const totalCost = meals.reduce((s, m) => s + m.cost, 0);
+
+  const tagOf = (m) => {
+    const t = m.tags.filter(t => !["cheap","quick","healthy","premium","treat"].includes(t));
+    return t.length ? `<span class="tag">${t[0]}</span>` : "";
+  };
+  const tagClass = (m) => {
+    if (m.tags.includes("cheap")) return "tag orange";
+    if (m.tags.includes("high-protein")) return "tag red";
+    if (m.tags.includes("healthy")) return "tag green";
+    if (m.tags.includes("vegan")) return "tag teal";
+    return "tag";
+  };
+  const mealHtml = (m) => m ? `
+    <div class="meal">
+      <div class="name">${m.name} <span class="${tagClass(m)}">${m.tags.filter(t => !["cheap","quick","healthy","premium","treat"].includes(t)).join(", ") || "meal"}</span></div>
+      <div class="meta">${m.cal} kcal · $${m.cost.toFixed(2)}/serving</div>
+    </div>` : `<div class="meal"><div class="name empty">No option fits that calorie cap.</div></div>`;
+
+  const groceryGroups = {};
+  for (const m of meals) {
+    if (!m) continue;
+    if (!groceryGroups[m.group]) groceryGroups[m.group] = { aisle: m.group, items: new Set() };
+    m.items.forEach(i => groceryGroups[m.group].items.add(i));
+  }
+  const groceryHtml = Object.values(groceryGroups).map(g => `
+    <div style="margin-top:8px"><strong>${g.aisle}</strong><ul>${[...g.items].map(i => `<li>${i}</li>`).join("")}</ul></div>`).join("");
+
+  document.getElementById("output").innerHTML = `
+    <div class="card">
+      <h2 style="margin:0">خطتك اليوم</h2>
+      <p class="sub" style="margin-top:4px">ميزانية الغذاء اليومية: $${dailyBudget.toFixed(2)} · هدف السعرات: ~${target}</p>
+      ${mealHtml(b)}
+      ${mealHtml(l)}
+      ${mealHtml(d)}
+      <div class="totals" style="border-top: 2px solid var(--accent);">
+        <span>Total</span>
+        <span>${totalCal} kcal · $${totalCost.toFixed(2)}/day</span>
+      </div>
+      <div class="grocery"><strong>قائمة التسوق:</strong>${groceryHtml}</div>
+    </div>
+  `;
+
+  const plan = { b, l, d, totalCal, totalCost, diet, date: new Date().toISOString() };
+  let plans = JSON.parse(localStorage.getItem("mealPlans") || "[]");
+  plans.push(plan);
+  if (plans.length > 10) plans = plans.slice(-10);
+  localStorage.setItem("mealPlans", JSON.stringify(plans));
+  renderSavedPlans();
+}
+
+function renderSavedPlans() {
+  const el = document.getElementById("savedPlans");
+  if (!el) return;
+  const plans = JSON.parse(localStorage.getItem("mealPlans") || "[]");
+  if (!plans.length) { el.innerHTML = ""; return; }
+  let html = `<h3 style="margin:8px 0 4px">الخطط المحفوظة</h3>`;
+  plans.slice().reverse().forEach((p, idx) => {
+    html += `<div class="saved">
+      <div>${new Date(p.date).toLocaleDateString()} — ${p.totalCal} kcal · $${p.totalCost.toFixed(2)}/يوم${p.diet ? " · " + DIET_LABELS[p.diet] : ""}</div>
+      <button data-id="${plans.length - 1 - idx}">Load</button>
+    </div>`;
+  });
+  el.innerHTML = html;
+  el.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const plans = JSON.parse(localStorage.getItem("mealPlans") || "[]");
+      const p = plans[parseInt(btn.dataset.id)];
+      if (p.b) {
+        document.getElementById("output").innerHTML = `<div class="card"><h2 style="margin:0">Loaded plan</h2><p class="sub">${p.b.name}${p.l ? " / " + p.l.name : ""}${p.d ? " / " + p.d.name : ""}</p><div class="totals"><span>Total</span><span>${p.totalCal} kcal · $${p.totalCost.toFixed(2)}/day</span></div></div>`;
+      }
+    });
+  });
+}
+
+document.getElementById("planBtn").addEventListener("click", generatePlan);
+document.getElementById("accent").addEventListener("change", (e) => {
+  document.documentElement.style.setProperty("--accent", e.target.value);
+});
+document.getElementById("diet").addEventListener("change", renderPicker);
+renderPicker();
+window.generatePlan = generatePlan;
+</script>
+</body>
+</html>
