@@ -119,6 +119,10 @@
         <option>Term 2</option>
         <option>Term 3</option>
         <option>Final</option>
+        <option>Sep</option>
+        <option>Oct</option>
+        <option>Nov</option>
+        <option>Dec</option>
       </select>
     </div>
     <div>
@@ -226,7 +230,7 @@ function drawChart() {
   const sid = state.currentSid;
   const subject = document.getElementById("mk-subject").value;
   const rows = state.marks.filter(m => m.sid === sid && m.subject === subject).sort((a, b) => {
-    const order = { "Term 1": 1, "Term 2": 2, "Term 3": 3, "Final": 4 };
+    const order = { "Term 1": 1, "Term 2": 2, "Term 3": 3, "Final": 4, "Sep": 5, "Oct": 6, "Nov": 7, "Dec": 8 };
     return (order[a.term] || 0) - (order[b.term] || 0);
   });
   const labels = rows.map(r => r.term);
