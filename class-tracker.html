@@ -56,6 +56,13 @@
 </div>
 
 <div class="card">
+  <h2>Import CSV</h2>
+  <label>CSV format: name,roll,subject,term,mark,max</label>
+  <input type="file" id="csv-file" accept=".csv">
+  <button id="csv-add">Import</button>
+</div>
+
+<div class="card">
   <h2>Students</h2>
   <div id="student-list"></div>
 </div>
@@ -129,6 +136,9 @@
   <h3>Progress</h3>
   <canvas id="progressChart" height="200"></canvas>
 
+  <h3>Comparison</h3>
+  <canvas id="compareChart" height="200"></canvas>
+
   <h3>Attendance</h3>
   <p class="sub">Overall: <span id="att-pct">0</span>%</p>
   <button id="att-marks">Mark attendance for today</button>
@@ -185,6 +195,7 @@ function openStudent(s) {
   renderAttendance();
   renderDashboard();
   drawChart();
+  drawCompare();
 }
 
 function renderMarks() {
@@ -224,6 +235,27 @@ function drawChart() {
     type: "line",
     data: { labels, datasets: [{ label: subject, data, borderColor: "#2563eb", tension: 0.3 }] },
     options: { scales: { y: { beginAtZero: true, max: parseFloat(document.getElementById("mk-max").value) || 100 } } },
+  });
+}
+
+function drawCompare() {
+  const canvas = document.getElementById("compareChart");
+  const ctx = canvas.getContext("2d");
+  if (window.compareChart) { window.compareChart.destroy(); window.compareChart = null; }
+  const subject = document.getElementById("mk-subject").value;
+  const rows = state.marks.filter(m => m.subject === subject);
+  const bySid = {};
+  for (const m of rows) {
+    if (!bySid[m.sid]) bySid[m.sid] = { mark: m.mark, max: m.max };
+    else bySid[m.sid].mark = m.mark;
+  }
+  const entries = Object.entries(bySid).map(([sid, v]) => ({ name: state.students.find(s => s.id === sid)?.name || "unknown", mark: v.mark, max: v.max }));
+  const labels = entries.map(e => e.name);
+  const data = entries.map(e => e.mark);
+  window.compareChart = new Chart(ctx, {
+    type: "bar",
+    data: { labels, datasets: [{ label: subject, data, backgroundColor: "#2563eb" }] },
+    options: { scales: { y: { beginAtZero: true, max: 100 } } },
   });
 }
 
@@ -308,7 +340,25 @@ document.getElementById("sc-save").addEventListener("click", () => {
   save();
 });
 
-document.getElementById("mk-subject").addEventListener("change", drawChart);
+document.getElementById("csv-add").addEventListener("click", async () => {
+  const file = document.getElementById("csv-file").files[0];
+  if (!file) return alert("Choose a CSV file.");
+  const text = await file.text();
+  const lines = text.trim().split(/\r?\n/);
+  for (const line of lines.slice(1)) {
+    const parts = line.split(",").map(s => s.trim());
+    if (parts.length < 6) continue;
+    const [name, roll, subject, term, mark, max] = parts;
+    const stu = state.students.find(s => s.roll === roll || s.name === name);
+    if (!stu) continue;
+    state.marks.push({ sid: stu.id, subject, term, mark: parseFloat(mark), max: parseFloat(max) || 100 });
+  }
+  save();
+  renderStudents();
+  if (state.currentSid) { renderMarks(); drawChart(); drawCompare(); }
+});
+
+document.getElementById("mk-subject").addEventListener("change", () => { drawChart(); drawCompare(); });
 
 renderStudents();
 renderSubjects();
