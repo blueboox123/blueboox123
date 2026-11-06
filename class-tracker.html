@@ -71,6 +71,25 @@
   <button id="sub-add">Add Subject</button>
 </div>
 
+<div class="card">
+  <h2>School / Class Info</h2>
+  <div class="row">
+    <div>
+      <label>School Name</label>
+      <input id="sc-school" type="text" value="${state.meta.school}">
+    </div>
+    <div>
+      <label>Class / Section</label>
+      <input id="sc-class" type="text" value="${state.meta.className}">
+    </div>
+  </div>
+  <div style="max-width: 420px">
+    <label>Teacher Name</label>
+    <input id="sc-teacher" type="text" value="${state.meta.teacher}">
+  </div>
+  <button id="sc-save">Save Info</button>
+</div>
+
 <div class="card" id="student-detail" hidden>
   <h2 id="sd-name">Student</h2>
   <p class="sub" id="sd-meta"></p>
@@ -125,6 +144,7 @@ const state = {
   subjects: JSON.parse(localStorage.getItem("ct_subjects") || "[]"),
   marks: JSON.parse(localStorage.getItem("ct_marks") || "[]"),
   attendance: JSON.parse(localStorage.getItem("ct_attendance") || "{}"),
+  meta: JSON.parse(localStorage.getItem("ct_meta") || JSON.stringify({ school: "", className: "", teacher: "" })),
 };
 
 function save() {
@@ -132,6 +152,7 @@ function save() {
   localStorage.setItem("ct_subjects", JSON.stringify(state.subjects));
   localStorage.setItem("ct_marks", JSON.stringify(state.marks));
   localStorage.setItem("ct_attendance", JSON.stringify(state.attendance));
+  localStorage.setItem("ct_meta", JSON.stringify(state.meta));
 }
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -156,7 +177,7 @@ function openStudent(s) {
   state.currentSid = s.id;
   document.getElementById("student-detail").hidden = false;
   document.getElementById("sd-name").textContent = `${s.name} (#${s.roll})`;
-  document.getElementById("sd-meta").textContent = "Progress tracking for the year";
+  document.getElementById("sd-meta").textContent = [state.meta.school, state.meta.className, state.meta.teacher].filter(Boolean).join(" | ") || "Progress tracking for the year";
   renderSubjects();
   renderMarks();
   renderAttendance();
@@ -276,6 +297,12 @@ function renderDashboard() {
 }
 
 document.getElementById("sub-add").addEventListener("click", addSubject);
+document.getElementById("sc-save").addEventListener("click", () => {
+  state.meta.school = document.getElementById("sc-school").value.trim();
+  state.meta.className = document.getElementById("sc-class").value.trim();
+  state.meta.teacher = document.getElementById("sc-teacher").value.trim();
+  save();
+});
 
 document.getElementById("mk-subject").addEventListener("change", drawChart);
 
