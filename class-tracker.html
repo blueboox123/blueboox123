@@ -53,6 +53,7 @@
     </div>
   </div>
   <button id="st-add">Add Student</button>
+  <button id="st-add-ok">OK</button>
 </div>
 
 <div class="card">
@@ -276,7 +277,7 @@ function renderAttendance() {
   el.innerHTML = entries.map(([d, s]) => `<div>${d}: <strong>${s === "P" ? "Present" : "Absent"}</strong></div>`).join("");
 }
 
-document.getElementById("st-add").addEventListener("click", () => {
+function submitStudent() {
   const name = document.getElementById("st-name").value.trim();
   const roll = document.getElementById("st-roll").value.trim();
   if (!name) return alert("Enter a name.");
@@ -287,7 +288,10 @@ document.getElementById("st-add").addEventListener("click", () => {
   document.getElementById("st-name").value = "";
   document.getElementById("st-roll").value = "";
   openStudent(stu);
-});
+}
+
+document.getElementById("st-add").addEventListener("click", submitStudent);
+document.getElementById("st-add-ok").addEventListener("click", submitStudent);
 
 document.getElementById("mk-add").addEventListener("click", () => {
   const subject = document.getElementById("mk-subject").value;
