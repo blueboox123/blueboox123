@@ -64,6 +64,11 @@
   <h2 id="sd-name">Student</h2>
   <p class="sub" id="sd-meta"></p>
 
+  <div class="card" style="margin-top:0; box-shadow:none; background:#f8fafc">
+    <h3>Class Dashboard</h3>
+    <div id="dash"></div>
+  </div>
+
   <h3>Marks</h3>
   <div class="row">
     <div>
@@ -144,6 +149,7 @@ function openStudent(s) {
   renderSubjects();
   renderMarks();
   renderAttendance();
+  renderDashboard();
   drawChart();
 }
 
@@ -243,6 +249,19 @@ function addSubject() {
   save();
   renderSubjects();
   document.getElementById("sub-name").value = "";
+}
+
+function renderDashboard() {
+  const el = document.getElementById("dash");
+  if (!state.subjects.length) { el.innerHTML = `<p class="empty">Add subjects first.</p>`; return; }
+  const rows = state.subjects.map(s => {
+    const marks = state.marks.filter(m => m.subject === s);
+    const avg = marks.length ? marks.reduce((a, m) => a + (m.mark / (m.max || 100)) * 100, 0) / marks.length : null;
+    const best = marks.length ? marks.reduce((a, b) => (b.mark / (b.max || 100)) > (a.mark / (a.max || 100)) ? b : a) : null;
+    const bestName = best ? (state.students.find(x => x.id === best.sid)?.name || "unknown") : "—";
+    return `<tr><td>${s}</td><td>${avg === null ? "—" : avg.toFixed(1) + "%"}</td><td>${bestName}</td></tr>`;
+  });
+  el.innerHTML = `<table><tr><th>Subject</th><th>Class Avg</th><th>Top Student</th></tr>${rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("")}</table>`;
 }
 
 document.getElementById("sub-add").addEventListener("click", addSubject);
