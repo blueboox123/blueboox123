@@ -220,21 +220,15 @@ function openStudent(s) {
 function renderMarks() {
   const el = document.getElementById("marks-list");
   const sid = state.currentSid;
-  const mine = state.marks.filter(m => m.sid === sid);
+  const order = { "Term 1": 1, "Term 2": 2, "Term 3": 3, "Final": 4, "Sep": 5, "Oct": 6, "Nov": 7, "Dec": 8 };
+  const mine = state.marks.filter(m => m.sid === sid)
+    .sort((a, b) => String(a.subject).localeCompare(String(b.subject)) || (order[a.term] || 0) - (order[b.term] || 0));
   if (!mine.length) { el.innerHTML = `<p class="empty">No marks yet.</p>`; return; }
-  const bySubject = {};
+  let html = `<table><tr><th>Subject</th><th>Term</th><th>Mark</th><th>Max</th></tr>`;
   for (const m of mine) {
-    if (!bySubject[m.subject]) bySubject[m.subject] = [];
-    bySubject[m.subject].push(m);
+    html += `<tr><td>${m.subject}</td><td>${m.term}</td><td>${m.mark}</td><td>${m.max}</td></tr>`;
   }
-  let html = "";
-  for (const [subj, list] of Object.entries(bySubject)) {
-    html += `<div style="margin-top:10px"><strong>${subj}</strong> <span style="color:#94a3b8;font-size:12px;font-weight:400">(${m.by || "teacher"})</span><table><tr><th>Term</th><th>Mark</th><th>Max</th></tr>`;
-    for (const m of list) {
-      html += `<tr><td>${m.term}</td><td>${m.mark}</td><td>${m.max}</td></tr>`;
-    }
-    html += `</table></div>`;
-  }
+  html += `</table>`;
   el.innerHTML = html;
 }
 
