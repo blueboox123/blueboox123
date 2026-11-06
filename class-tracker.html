@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Class Progress Tracker</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; max-width: 860px; margin: 40px auto; padding: 0 16px; color: #222; }
+  h1 { font-size: 38px; margin-bottom: 6px; background: linear-gradient(135deg, #2563eb, #7c3aed); -webkit-background-clip: text; background-clip: text; color: transparent; letter-spacing: -0.5px; }
+  h2 { font-size: 26px; color: #0f172a; letter-spacing: -0.3px; }
+  h3 { font-size: 19px; color: #334155; }
+  .sub { color: #666; margin-top: 0; }
+  label { display: block; margin: 14px 0 4px; font-weight: 600; font-size: 14px; }
+  input, select { width: 100%; padding: 10px; margin-top: 4px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; }
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; }
+  button { margin-top: 18px; padding: 12px 24px; border: none; border-radius: 8px; background: var(--accent, #2563eb); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
+  button:hover { filter: brightness(0.9); }
+  .card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-top: 16px; margin-bottom: 8px; background: #fff; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.07); }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+  th, td { border-bottom: 1px solid #f1f5f9; padding: 8px 4px; text-align: left; }
+  th { color: #64748b; font-size: 12px; text-transform: uppercase; }
+  canvas { max-width: 100%; }
+  .empty { color: #94a3b8; font-style: italic; }
+</style>
+</head>
+<body>
+<h1>📊 Class Progress Tracker</h1>
+<p class="sub">Put in a child's roll no / name and track their progress all year.</p>
+
+<div class="card">
+  <h2>Add Student</h2>
+  <div class="row">
+    <div>
+      <label>Name</label>
+      <input id="st-name" type="text" placeholder="e.g. Aisha Khan">
+    </div>
+    <div>
+      <label>Roll No</label>
+      <input id="st-roll" type="text" placeholder="e.g. 42">
+    </div>
+  </div>
+  <button id="st-add">Add Student</button>
+</div>
+
+<div class="card">
+  <h2>Students</h2>
+  <div id="student-list"></div>
+</div>
+
+<div class="card">
+  <h2>Add Subject</h2>
+  <div class="row">
+    <div>
+      <label>Subject</label>
+      <input id="sub-name" type="text" placeholder="e.g. Mathematics">
+    </div>
+  </div>
+  <button id="sub-add">Add Subject</button>
+</div>
+
+<div class="card" id="student-detail" hidden>
+  <h2 id="sd-name">Student</h2>
+  <p class="sub" id="sd-meta"></p>
+
+  <h3>Marks</h3>
+  <div class="row">
+    <div>
+      <label>Subject</label>
+      <select id="mk-subject"></select>
+    </div>
+    <div>
+      <label>Term</label>
+      <select id="mk-term">
+        <option>Term 1</option>
+        <option>Term 2</option>
+        <option>Term 3</option>
+        <option>Final</option>
+      </select>
+    </div>
+    <div>
+      <label>Mark</label>
+      <input id="mk-mark" type="number" step="0.1" min="0">
+    </div>
+    <div>
+      <label>Max</label>
+      <input id="mk-max" type="number" value="100">
+    </div>
+  </div>
+  <button id="mk-add">Add Mark</button>
+  <div id="marks-list"></div>
+
+  <h3>Progress</h3>
+  <canvas id="progressChart" height="200"></canvas>
+
+  <h3>Attendance</h3>
+  <p class="sub">Overall: <span id="att-pct">0</span>%</p>
+  <button id="att-marks">Mark attendance for today</button>
+  <div id="att-list"></div>
+</div>
+
+<div id="output"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const state = {
+  students: JSON.parse(localStorage.getItem("ct_students") || "[]"),
+  subjects: JSON.parse(localStorage.getItem("ct_subjects") || "[]"),
+  marks: JSON.parse(localStorage.getItem("ct_marks") || "[]"),
+  attendance: JSON.parse(localStorage.getItem("ct_attendance") || "{}"),
+};
+
+function save() {
+  localStorage.setItem("ct_students", JSON.stringify(state.students));
+  localStorage.setItem("ct_subjects", JSON.stringify(state.subjects));
+  localStorage.setItem("ct_marks", JSON.stringify(state.marks));
+  localStorage.setItem("ct_attendance", JSON.stringify(state.attendance));
+}
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+function renderStudents() {
+  const el = document.getElementById("student-list");
+  if (!state.students.length) { el.innerHTML = `<p class="empty">No students yet — add one above.</p>`; return; }
+  el.innerHTML = state.students.map(s => `
+    <button style="display:block;width:100;text-align:left;padding:10px;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:8px;background:#f8fafc;cursor:pointer;font-size:15px"
+      data-id="${s.id}">
+      <strong>${s.name}</strong> <span style="color:#64748b">(#${s.roll})</span>
+    </button>`).join("");
+  el.querySelectorAll("button").forEach(b => {
+    b.addEventListener("click", () => {
+      const s = state.students.find(x => x.id === b.dataset.id);
+      if (s) openStudent(s);
+    });
+  });
+}
+
+function openStudent(s) {
+  state.currentSid = s.id;
+  document.getElementById("student-detail").hidden = false;
+  document.getElementById("sd-name").textContent = `${s.name} (#${s.roll})`;
+  document.getElementById("sd-meta").textContent = "Progress tracking for the year";
+  renderSubjects();
+  renderMarks();
+  renderAttendance();
+  drawChart();
+}
+
+function renderMarks() {
+  const el = document.getElementById("marks-list");
+  const sid = state.currentSid;
+  const mine = state.marks.filter(m => m.sid === sid);
+  if (!mine.length) { el.innerHTML = `<p class="empty">No marks yet.</p>`; return; }
+  const bySubject = {};
+  for (const m of mine) {
+    if (!bySubject[m.subject]) bySubject[m.subject] = [];
+    bySubject[m.subject].push(m);
+  }
+  let html = "";
+  for (const [subj, list] of Object.entries(bySubject)) {
+    html += `<div style="margin-top:10px"><strong>${subj}</strong><table><tr><th>Term</th><th>Mark</th><th>Max</th></tr>`;
+    for (const m of list) {
+      html += `<tr><td>${m.term}</td><td>${m.mark}</td><td>${m.max}</td></tr>`;
+    }
+    html += `</table></div>`;
+  }
+  el.innerHTML = html;
+}
+
+function drawChart() {
+  const canvas = document.getElementById("progressChart");
+  const ctx = canvas.getContext("2d");
+  if (window.myChart) { window.myChart.destroy(); window.myChart = null; }
+  const sid = state.currentSid;
+  const subject = document.getElementById("mk-subject").value;
+  const rows = state.marks.filter(m => m.sid === sid && m.subject === subject).sort((a, b) => {
+    const order = { "Term 1": 1, "Term 2": 2, "Term 3": 3, "Final": 4 };
+    return (order[a.term] || 0) - (order[b.term] || 0);
+  });
+  const labels = rows.map(r => r.term);
+  const data = rows.map(r => r.mark);
+  window.myChart = new Chart(ctx, {
+    type: "line",
+    data: { labels, datasets: [{ label: subject, data, borderColor: "#2563eb", tension: 0.3 }] },
+    options: { scales: { y: { beginAtZero: true, max: parseFloat(document.getElementById("mk-max").value) || 100 } } },
+  });
+}
+
+function renderAttendance() {
+  const sid = state.currentSid;
+  const att = state.attendance[sid] || {};
+  const entries = Object.entries(att);
+  const total = entries.length;
+  const present = entries.filter(([d, s]) => s === "P").length;
+  const pct = total ? Math.round((present / total) * 100) : 0;
+  document.getElementById("att-pct").textContent = pct;
+  const el = document.getElementById("att-list");
+  if (!entries.length) { el.innerHTML = `<p class="empty">No attendance records yet.</p>`; return; }
+  el.innerHTML = entries.map(([d, s]) => `<div>${d}: <strong>${s === "P" ? "Present" : "Absent"}</strong></div>`).join("");
+}
+
+document.getElementById("st-add").addEventListener("click", () => {
+  const name = document.getElementById("st-name").value.trim();
+  const roll = document.getElementById("st-roll").value.trim();
+  if (!name) return alert("Enter a name.");
+  state.students.push({ id: uid(), name, roll });
+  save();
+  renderStudents();
+  document.getElementById("st-name").value = "";
+  document.getElementById("st-roll").value = "";
+});
+
+document.getElementById("mk-add").addEventListener("click", () => {
+  const mark = parseFloat(document.getElementById("mk-mark").value);
+  const max = parseFloat(document.getElementById("mk-max").value) || 100;
+  if (isNaN(mark)) return alert("Enter a mark.");
+  state.marks.push({ sid: state.currentSid, subject: document.getElementById("mk-subject").value, term: document.getElementById("mk-term").value, mark, max });
+  save();
+  renderMarks();
+  drawChart();
+});
+
+document.getElementById("att-marks").addEventListener("click", () => {
+  const sid = state.currentSid;
+  const today = new Date().toISOString().slice(0, 10);
+  state.attendance[sid] = state.attendance[sid] || {};
+  state.attendance[sid][today] = "P";
+  save();
+  renderAttendance();
+});
+
+function renderSubjects() {
+  const sel = document.getElementById("mk-subject");
+  sel.innerHTML = state.subjects.map(s => `<option value="${s}">${s}</option>`).join("");
+}
+
+function addSubject() {
+  const name = document.getElementById("sub-name").value.trim();
+  if (!name) return alert("Enter a subject.");
+  if (state.subjects.includes(name)) return alert("Subject already exists.");
+  state.subjects.push(name);
+  save();
+  renderSubjects();
+  document.getElementById("sub-name").value = "";
+}
+
+document.getElementById("sub-add").addEventListener("click", addSubject);
+
+document.getElementById("mk-subject").addEventListener("change", drawChart);
+
+renderStudents();
+renderSubjects();
+window.openStudent = openStudent;
+window.renderMarks = renderMarks;
+window.drawChart = drawChart;
+window.renderAttendance = renderAttendance;
+window.state = state;
+</script>
+</body>
+</html>
