@@ -179,6 +179,8 @@ function openStudent(s) {
   document.getElementById("sd-name").textContent = `${s.name} (#${s.roll})`;
   document.getElementById("sd-meta").textContent = [state.meta.school, state.meta.className, state.meta.teacher].filter(Boolean).join(" | ") || "Progress tracking for the year";
   renderSubjects();
+  const subSel = document.getElementById("mk-subject");
+  if (subSel.options.length && !subSel.value) subSel.value = subSel.options[0].value;
   renderMarks();
   renderAttendance();
   renderDashboard();
@@ -250,10 +252,12 @@ document.getElementById("st-add").addEventListener("click", () => {
 });
 
 document.getElementById("mk-add").addEventListener("click", () => {
+  const subject = document.getElementById("mk-subject").value;
+  if (!subject) return alert("Select a subject.");
   const mark = parseFloat(document.getElementById("mk-mark").value);
   const max = parseFloat(document.getElementById("mk-max").value) || 100;
   if (isNaN(mark)) return alert("Enter a mark.");
-  state.marks.push({ sid: state.currentSid, subject: document.getElementById("mk-subject").value, term: document.getElementById("mk-term").value, mark, max });
+  state.marks.push({ sid: state.currentSid, subject, term: document.getElementById("mk-term").value, mark, max });
   save();
   renderMarks();
   drawChart();
