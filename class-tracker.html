@@ -280,11 +280,13 @@ document.getElementById("st-add").addEventListener("click", () => {
   const name = document.getElementById("st-name").value.trim();
   const roll = document.getElementById("st-roll").value.trim();
   if (!name) return alert("Enter a name.");
-  state.students.push({ id: uid(), name, roll });
+  const stu = { id: uid(), name, roll };
+  state.students.push(stu);
   save();
   renderStudents();
   document.getElementById("st-name").value = "";
   document.getElementById("st-roll").value = "";
+  openStudent(stu);
 });
 
 document.getElementById("mk-add").addEventListener("click", () => {
