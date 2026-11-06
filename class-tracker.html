@@ -28,6 +28,9 @@
   .row > div { flex: 1; }
   button { margin-top: 18px; padding: 12px 24px; border: none; border-radius: 8px; background: var(--accent, #2563eb); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
   button:hover { filter: brightness(0.9); }
+  .mode-row { display:flex; gap:10px; margin-top:16px; }
+  .mode-btn { flex:1; margin-top:0; background:#e2e8f0; color:#334155; }
+  .mode-btn.active { background:#059669; color:#fff; }
   .card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-top: 16px; margin-bottom: 8px; background: #fff; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.07); }
   table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
   th, td { border-bottom: 1px solid #f1f5f9; padding: 8px 4px; text-align: left; }
@@ -38,7 +41,12 @@
 </head>
 <body>
 <h1>📊 Class Progress Tracker</h1>
-<p class="sub">Put in a child's roll no / name and track their progress all year.</p>
+<p class="sub" id="app-sub">Put in a child's roll no / name and track their progress all year.</p>
+
+<div class="mode-row">
+  <button id="mode-teacher" class="mode-btn">Teacher</button>
+  <button id="mode-parent" class="mode-btn">Parent</button>
+</div>
 
 <div class="card">
   <h2>Add Student</h2>
@@ -51,6 +59,10 @@
       <label>Roll No</label>
       <input id="st-roll" type="text" placeholder="e.g. 42">
     </div>
+  </div>
+  <div id="st-parent-wrap" hidden>
+    <label>Parent / Guardian Name</label>
+    <input id="st-parent" type="text" placeholder="e.g. Aisha Khan (mother) / Omar Khan (father)">
   </div>
   <button id="st-add">Add Student</button>
   <button id="st-add-ok">OK</button>
@@ -160,6 +172,7 @@ const state = {
   marks: JSON.parse(localStorage.getItem("ct_marks") || "[]"),
   attendance: JSON.parse(localStorage.getItem("ct_attendance") || "{}"),
   meta: JSON.parse(localStorage.getItem("ct_meta") || JSON.stringify({ school: "", className: "", teacher: "" })),
+  mode: JSON.parse(localStorage.getItem("ct_mode") || '"teacher"'),
 };
 
 function save() {
@@ -168,6 +181,7 @@ function save() {
   localStorage.setItem("ct_marks", JSON.stringify(state.marks));
   localStorage.setItem("ct_attendance", JSON.stringify(state.attendance));
   localStorage.setItem("ct_meta", JSON.stringify(state.meta));
+  localStorage.setItem("ct_mode", JSON.stringify(state.mode));
 }
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -215,7 +229,7 @@ function renderMarks() {
   }
   let html = "";
   for (const [subj, list] of Object.entries(bySubject)) {
-    html += `<div style="margin-top:10px"><strong>${subj}</strong><table><tr><th>Term</th><th>Mark</th><th>Max</th></tr>`;
+    html += `<div style="margin-top:10px"><strong>${subj}</strong> <span style="color:#94a3b8;font-size:12px;font-weight:400">(${m.by || "teacher"})</span><table><tr><th>Term</th><th>Mark</th><th>Max</th></tr>`;
     for (const m of list) {
       html += `<tr><td>${m.term}</td><td>${m.mark}</td><td>${m.max}</td></tr>`;
     }
@@ -281,7 +295,7 @@ function submitStudent() {
   const name = document.getElementById("st-name").value.trim();
   const roll = document.getElementById("st-roll").value.trim();
   if (!name) return alert("Enter a name.");
-  const stu = { id: uid(), name, roll };
+  const stu = { id: uid(), name, roll, parent: state.mode === "parent" ? document.getElementById("st-parent").value.trim() : "" };
   state.students.push(stu);
   save();
   renderStudents();
@@ -289,6 +303,20 @@ function submitStudent() {
   document.getElementById("st-roll").value = "";
   openStudent(stu);
 }
+
+function renderModeUI() {
+  document.getElementById("mode-teacher").classList.toggle("active", state.mode === "teacher");
+  document.getElementById("mode-parent").classList.toggle("active", state.mode === "parent");
+  document.getElementById("st-parent-wrap").hidden = state.mode !== "parent";
+  const sub = document.getElementById("app-sub");
+  if (sub) sub.textContent = state.mode === "parent" ? "Enter your child's progress and track their year." : "Put in a child's roll no / name and track their progress all year.";
+}
+
+function setMode(m) { state.mode = m; save(); renderModeUI(); }
+
+document.getElementById("mode-teacher").addEventListener("click", () => setMode("teacher"));
+document.getElementById("mode-parent").addEventListener("click", () => setMode("parent"));
+renderModeUI();
 
 document.getElementById("st-add").addEventListener("click", submitStudent);
 document.getElementById("st-add-ok").addEventListener("click", submitStudent);
@@ -299,7 +327,7 @@ document.getElementById("mk-add").addEventListener("click", () => {
   const mark = parseFloat(document.getElementById("mk-mark").value);
   const max = parseFloat(document.getElementById("mk-max").value) || 100;
   if (isNaN(mark)) return alert("Enter a mark.");
-  state.marks.push({ sid: state.currentSid, subject, term: document.getElementById("mk-term").value, mark, max });
+  state.marks.push({ sid: state.currentSid, subject, term: document.getElementById("mk-term").value, mark, max, by: state.mode });
   save();
   renderMarks();
   drawChart();
@@ -372,6 +400,7 @@ document.getElementById("mk-subject").addEventListener("change", () => { drawCha
 
 renderStudents();
 renderSubjects();
+renderModeUI();
 window.openStudent = openStudent;
 window.renderMarks = renderMarks;
 window.drawChart = drawChart;
